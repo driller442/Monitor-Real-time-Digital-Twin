@@ -1,3 +1,6 @@
+﻿import sys
+    sys.exit(app.exec_())
+os.environ['QT_QPA_PLATFORM'] = 'windows'
 import sys
 import os
 import subprocess
@@ -355,18 +358,18 @@ class ElementFinderGUI(QMainWindow):
         """Validate the URL input"""
         url = self.url_input.text()
         if not url:
-            self.url_validation_label.setText("❌")
+            self.url_validation_label.setText("âŒ")
             self.url_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.url_input.setStyleSheet("border: 1px solid #FF6B68;")
             return False
         
         if not url.startswith(("http://", "https://")):
-            self.url_validation_label.setText("❌")
+            self.url_validation_label.setText("âŒ")
             self.url_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.url_input.setStyleSheet("border: 1px solid #FF6B68;")
             return False
         
-        self.url_validation_label.setText("✓")
+        self.url_validation_label.setText("âœ“")
         self.url_validation_label.setStyleSheet("color: #6A8759;")  # Green
         self.url_input.setStyleSheet("")
         return True
@@ -375,7 +378,7 @@ class ElementFinderGUI(QMainWindow):
         """Validate the output file path"""
         path = self.output_file_input.text()
         if not path:
-            self.output_validation_label.setText("❌")
+            self.output_validation_label.setText("âŒ")
             self.output_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.output_file_input.setStyleSheet("border: 1px solid #FF6B68;")
             return False
@@ -383,20 +386,20 @@ class ElementFinderGUI(QMainWindow):
         # Check if directory exists and is writable
         directory = os.path.dirname(path)
         if directory and not os.path.exists(directory):
-            self.output_validation_label.setText("❌")
+            self.output_validation_label.setText("âŒ")
             self.output_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.output_file_input.setStyleSheet("border: 1px solid #FF6B68;")
             self.output_file_input.setToolTip("Directory does not exist")
             return False
         
         if directory and not os.access(directory, os.W_OK):
-            self.output_validation_label.setText("❌")
+            self.output_validation_label.setText("âŒ")
             self.output_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.output_file_input.setStyleSheet("border: 1px solid #FF6B68;")
             self.output_file_input.setToolTip("Directory is not writable")
             return False
         
-        self.output_validation_label.setText("✓")
+        self.output_validation_label.setText("âœ“")
         self.output_validation_label.setStyleSheet("color: #6A8759;")  # Green
         self.output_file_input.setStyleSheet("")
         self.output_file_input.setToolTip("Specify where to save the scan results")
@@ -409,19 +412,19 @@ class ElementFinderGUI(QMainWindow):
         
         path = self.chrome_profile_input.text()
         if not path:
-            self.profile_validation_label.setText("❌")
+            self.profile_validation_label.setText("âŒ")
             self.profile_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.chrome_profile_input.setStyleSheet("border: 1px solid #FF6B68;")
             return False
         
         if not os.path.exists(path):
-            self.profile_validation_label.setText("❌")
+            self.profile_validation_label.setText("âŒ")
             self.profile_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.chrome_profile_input.setStyleSheet("border: 1px solid #FF6B68;")
             self.chrome_profile_input.setToolTip("Profile directory does not exist")
             return False
         
-        self.profile_validation_label.setText("✓")
+        self.profile_validation_label.setText("âœ“")
         self.profile_validation_label.setStyleSheet("color: #6A8759;")  # Green
         self.chrome_profile_input.setStyleSheet("")
         self.chrome_profile_input.setToolTip("Path to your Chrome user profile directory")
@@ -434,12 +437,12 @@ class ElementFinderGUI(QMainWindow):
         
         selector = self.hover_selector_input.text()
         if not selector:
-            self.hover_validation_label.setText("❌")
+            self.hover_validation_label.setText("âŒ")
             self.hover_validation_label.setStyleSheet("color: #FF6B68;")  # Red
             self.hover_selector_input.setStyleSheet("border: 1px solid #FF6B68;")
             return False
         
-        self.hover_validation_label.setText("✓")
+        self.hover_validation_label.setText("âœ“")
         self.hover_validation_label.setStyleSheet("color: #6A8759;")  # Green
         self.hover_selector_input.setStyleSheet("")
         return True
