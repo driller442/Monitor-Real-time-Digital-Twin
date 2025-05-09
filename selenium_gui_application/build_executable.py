@@ -52,8 +52,8 @@ pyinstaller_args = [
     script_abs_path,  # Use absolute path for the main script
     '--name={}'.format(APP_NAME),
     '--onefile',
-    '--windowed', # Use --console instead of --windowed for easier debugging of ModuleNotFound errors
-    # '--console', # UNCOMMENT FOR DEBUGGING, COMMENT --windowed
+    # '--windowed', # Temporarily disabled for console debugging # Use --console instead of --windowed for easier debugging of ModuleNotFound errors
+    '--console', # ENABLED FOR DEBUGGING
     
     # Crucial for finding modules within the 'src' directory (like 'utils')
     '--paths={}'.format(SRC_DIR_PATH), 
@@ -111,3 +111,4 @@ else:
     if not os.path.exists(final_exe_path):
         print(f"POST-BUILD ERROR: PyInstaller reported success, but executable not found at {final_exe_path}!")
         sys.exit(1)
+
