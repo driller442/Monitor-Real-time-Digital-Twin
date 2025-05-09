@@ -1,0 +1,11 @@
+# Element Finder GUI Application Dependencies
+
+# Core dependencies
+selenium>=4.1.0
+webdriver-manager>=3.8.0
+PyInstaller>=5.6.0
+
+# GUI dependencies
+# Note: tkinter comes with Python standard library, but may need to be installed separately on some systems
+# For Linux: sudo apt-get install python3-tk
+# For macOS: brew install python-tk@3.x (replace 3.x with your Python version)
