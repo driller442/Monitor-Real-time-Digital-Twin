@@ -1,0 +1,2216 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Virtual Battery Monitor - Real-time Digital Twin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0e0f13; --card:#151822; --muted:#97a1b3; --text:#e8ecf1;
+    --accent:#4ade80; --accent2:#60a5fa; --warn:#fca5a5; --amber:#fbbf24;
+    --purple:#a78bfa; --orange:#fb923c; --virtual:#10b981;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+  h1{font-size:1.6rem;margin:16px 0 8px;text-align:center}
+  h2{font-size:1.3rem;margin:12px 0 8px;color:var(--accent2)}
+  .sub{color:var(--muted);text-align:center;margin-bottom:16px}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+  .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+  .virtual-card{background:linear-gradient(135deg,#151822,#0f3027);border:2px solid var(--virtual)}
+  .span3{grid-column:span 3} .span4{grid-column:span 4} .span6{grid-column:span 6} .span8{grid-column:span 8} .span9{grid-column:span 9} .span12{grid-column:span 12}
+  @media(max-width:900px){.span3,.span4,.span6,.span8,.span9{grid-column:span 12}}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .label{font-weight:600}
+  .val{color:var(--accent);font-variant-numeric:tabular-nums}
+  .virtual-val{color:var(--virtual);font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#0f172a;color:#cbd5e1;font-size:.8rem}
+  .virtual-badge{background:linear-gradient(135deg,#10b981,#047857);color:#fff}
+  .warn{color:var(--warn)}
+  .ok{color:var(--accent)}
+  .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:#1f2432;color:var(--text);cursor:pointer;font-weight:600}
+  .btn:hover{filter:brightness(1.1)}
+  .btn.accent{background:linear-gradient(135deg,#22c55e,#16a34a)}
+  .btn.virtual{background:linear-gradient(135deg,#10b981,#047857)}
+  .btn.ghost{background:#121621;border:1px solid #1f2937}
+  .btn.red{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+  .btn.orange{background:linear-gradient(135deg,#f97316,#ea580c)}
+  .btn-group{display:flex;gap:12px;flex-wrap:wrap}
+  input[type=range]{width:100%}
+  .slider{margin-top:8px}
+  .small{font-size:.9rem}
+  .kpi{font-size:1.1rem}
+  .kpi .num{font-size:1.8rem;font-weight:800}
+  .divider{height:1px;background:#1f2633;margin:10px 0}
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{padding:8px;border-bottom:1px solid #212838;text-align:left}
+  .table th{color:#aab4c5;font-weight:600}
+  .right{text-align:right}
+  details{border:1px solid #202636;border-radius:12px;padding:10px}
+  summary{cursor:pointer;font-weight:700}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#121621;border:1px solid #1f2937;border-radius:999px;padding:6px 10px}
+  
+  .status-panel{background:#0f1419;border:2px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:12px}
+  .status-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .status-indicator{width:12px;height:12px;border-radius:50%;background:#ef4444}
+  .status-indicator.running{background:#10b981;animation:pulse 2s infinite}
+  .status-indicator.synced{background:#3b82f6}
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:0.7}}
+  
+  .comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center}
+  .diff{font-weight:bold;padding:4px 8px;border-radius:6px;font-size:0.9rem}
+  .diff.good{background:#064e3b;color:#10b981}
+  .diff.warn{background:#451a03;color:#f59e0b}
+  .diff.bad{background:#450a0a;color:#ef4444}
+  
+  .load-profile{background:#0a0f1c;border:1px solid #1e3a8a;border-radius:12px;padding:12px;margin-top:8px}
+  .time-display{font-family:monospace;font-size:1.1rem;color:var(--accent);text-align:center;margin:8px 0}
+  .search-input {width:100%; background:#0f121b; border:1px solid #263043; border-radius:8px; color:var(--text); padding:8px; margin-bottom:12px;}
+  
+  /* Toast Notification Styles */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+  }
+  .toast {
+    background: var(--card);
+    color: var(--text);
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    min-width: 300px;
+    animation: slideIn 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .toast.success {
+    border-left: 4px solid var(--accent);
+  }
+  .toast.error {
+    border-left: 4px solid var(--warn);
+  }
+  .toast.warning {
+    border-left: 4px solid var(--amber);
+  }
+  .toast.info {
+    border-left: 4px solid var(--accent2);
+  }
+  .toast-close {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+  }
+  .toast-icon {
+    margin-right: 12px;
+    font-size: 20px;
+  }
+  
+  /* Tooltip Styles */
+  .tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+  }
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: #1e293b;
+    color: var(--text);
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 14px;
+  }
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+  }
+  .modal-content {
+    background-color: var(--card);
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #333;
+    width: 50%;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  .modal-close {
+    color: var(--muted);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .modal-close:hover {
+    color: var(--text);
+  }
+  
+  /* Tour Styles */
+  .tour-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 1001;
+    display: none;
+  }
+  .tour-popup {
+    position: absolute;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 400px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    z-index: 1002;
+  }
+  .tour-popup h3 {
+    margin-top: 0;
+    color: var(--accent2);
+  }
+  .tour-popup .tour-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+  .tour-highlight {
+    position: relative;
+    z-index: 1003;
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.7);
+    border-radius: 8px;
+  }
+  
+  /* Empty State */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  /* Validation Error */
+  .validation-error {
+    color: var(--warn);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: none;
+  }
+  .input-error {
+    border: 1px solid var(--warn) !important;
+  }
+  
+  /* Accessibility */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+  
+  /* Batch Import Styles */
+  .batch-import-panel {
+    background: #0a0f1c;
+    border: 1px solid #1e3a8a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+  }
+  .batch-textarea {
+    width: 100%;
+    min-height: 150px;
+    background: #0f121b;
+    border: 1px solid #263043;
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px;
+    margin-bottom: 12px;
+    font-family: monospace;
+  }
+  .import-format {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  
+  /* Calibration Prompt */
+  .calibration-prompt {
+    background: linear-gradient(135deg, #1e3a8a, #0c4a6e);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+    display: none;
+  }
+  .calibration-prompt h3 {
+    color: var(--accent2);
+    margin-top: 0;
+  }
+  
+  /* Accuracy Trend */
+  .accuracy-trend {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.9rem;
+  }
+  .accuracy-bar {
+    flex-grow: 1;
+    height: 8px;
+    background: #1f2633;
+    border-radius: 4px;
+    margin: 0 10px;
+    overflow: hidden;
+  }
+  .accuracy-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--warn), var(--accent));
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+</style>
+</head>
+<body>
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+  
+  <!-- Tour Overlay -->
+  <div class="tour-overlay" id="tourOverlay">
+    <div class="tour-popup" id="tourPopup">
+      <h3 id="tourTitle">Welcome to Virtual Battery Monitor</h3>
+      <p id="tourContent">This tour will guide you through the main features of the application.</p>
+      <div class="tour-buttons">
+        <button class="btn ghost" id="tourSkip">Skip Tour</button>
+        <button class="btn accent" id="tourNext">Next</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal for Confirmations -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Confirm Action</h3>
+        <span class="modal-close" id="modalClose">&times;</span>
+      </div>
+      <p id="modalMessage">Are you sure you want to proceed?</p>
+      <div class="btn-group" style="justify-content: flex-end; margin-top: 20px;">
+        <button class="btn ghost" id="modalCancel">Cancel</button>
+        <button class="btn red" id="modalConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h1>🔋 Virtual Battery Monitor</h1>
+    <div class="sub">Real-time Digital Twin of Your Battery System • Compare Actual vs Virtual</div>
+    <div class="grid">
+      <!-- Virtual Battery Status -->
+      <div class="card virtual-card span12">
+        <div class="status-panel">
+          <div class="status-row">
+            <div class="status-indicator" id="vBatteryInd"></div>
+            <strong id="vBatteryStatus">Virtual Battery: Stopped</strong>
+            <div class="time-display" id="vBatteryTime">Runtime: 00:00:00</div>
+            <div class="btn-group" style="margin-left:auto">
+              <button class="btn virtual" id="startVBattery" title="Start or stop the virtual battery simulation" aria-label="Start or stop virtual battery">Start Virtual Battery</button>
+              <button class="btn orange" id="syncVBattery" title="Sync virtual battery state to current actual readings" aria-label="Sync to actual">Sync to Actual</button>
+              <button class="btn ghost" id="resetVBattery" title="Reset virtual battery to full charge" aria-label="Reset virtual battery">Reset</button>
+            </div>
+          </div>
+          <div class="load-profile">
+            <div class="row">
+              <div class="label">Load Profile</div>
+              <select id="loadProfile" style="background:#0f121b;border:1px solid #263043;border-radius:8px;color:var(--text);padding:6px" aria-label="Select load profile">
+                <option value="constant">Constant Load</option>
+                <option value="variable">Variable (±30%)</option>
+                <option value="realistic">Realistic Daily</option>
+                <option value="manual">Manual Control</option>
+                <option value="actual">Track Actual Load</option>
+              </select>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <div>Current Virtual Load: <span id="currentVLoad" class="virtual-val">20</span> W</div>
+              <div>Temperature: <span id="currentVTemp" class="virtual-val">20</span> °C</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Virtual vs Actual Comparison -->
+      <div class="card span6">
+        <h2>🤖 Virtual Battery State</h2>
+        <div class="row kpi">
+          <div>Virtual SOC</div>
+          <div class="num virtual-val" id="vSocNum">100%</div>
+        </div>
+        <div class="row kpi">
+          <div>Virtual Voltage</div>
+          <div class="num virtual-val" id="vVoltNum">12.70V</div>
+        </div>
+        <div class="row kpi">
+          <div>Virtual Runtime Est.</div>
+          <div class="num virtual-val" id="vRtNum">-- h</div>
+        </div>
+        <div class="divider"></div>
+        <div class="row">
+          <span class="badge virtual-badge">Virtual: 12V 130Ah</span>
+          <div class="small muted">Energy Used: <span id="energyUsed" class="virtual-val">0.0</span> Wh</div>
+        </div>
+      </div>
+      <div class="card span6">
+        <h2>📊 Actual Readings</h2>
+        <div class="row">
+          <div class="label">Actual Voltage</div>
+          <div><span id="vOut" class="val">12.70</span> <span class="muted">V</span></div>
+        </div>
+        <input id="voltage" class="slider" type="range" min="11.0" max="13.2" step="0.01" value="12.70" aria-label="Adjust actual voltage">
+        <div class="validation-error" id="voltageError">Voltage must be between 11.0V and 13.2V</div>
+        
+        <div class="divider"></div>
+        <div class="row">
+          <div class="label">Actual Load</div>
+          <div><span id="wOut" class="val">20</span> <span class="muted">W</span></div>
+        </div>
+        <input id="load" class="slider" type="range" min="0" max="150" step="1" value="20" aria-label="Adjust actual load">
+        <div class="validation-error" id="loadError">Load must be between 0W and 150W</div>
+        
+        <div class="divider"></div>
+        <div class="row">
+          <div class="label">Actual Temperature</div>
+          <div><span id="tOut" class="val">20</span> <span class="muted">°C</span></div>
+        </div>
+        <input id="temp" class="slider" type="range" min="-15" max="50" step="1" value="20" aria-label="Adjust actual temperature">
+        <div class="validation-error" id="tempError">Temperature must be between -15°C and 50°C</div>
+        
+        <div class="divider"></div>
+        <div class="row">
+          <div class="label">Rested?</div>
+          <label><input type="checkbox" id="isRested" aria-label="Check if battery is rested"> (No load for 1+ hour)</label>
+        </div>
+        <div class="calibration-prompt" id="calibrationPrompt">
+          <h3>Calibration Recommended</h3>
+          <p>You've marked the battery as rested. Would you like to calibrate the model using this rested voltage?</p>
+          <div class="btn-group" style="margin-top: 12px;">
+            <button class="btn ghost" id="dismissCalibration">Dismiss</button>
+            <button class="btn accent" id="acceptCalibration">Calibrate Now</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="label">Notes/Tag</div>
+          <input id="notes" style="background:#0f121b;border:1px solid #263043;border-radius:8px;color:var(--text);padding:6px" placeholder="e.g., rested, charging" aria-label="Enter notes or tag">
+        </div>
+        <div class="divider"></div>
+        <div class="row kpi">
+          <div>Actual SOC</div>
+          <div class="num" id="aSocNum">100%</div>
+        </div>
+        <div class="row kpi">
+          <div>Actual Runtime Est.</div>
+          <div class="num" id="aRtNum">-- h</div>
+        </div>
+      </div>
+      <!-- Comparison Panel -->
+      <div class="card span12">
+        <h2>⚖️ Virtual vs Actual Comparison</h2>
+        <div class="comparison">
+          <div>
+            <div class="row">
+              <div class="label">SOC Difference</div>
+              <div class="diff" id="socDiff">--</div>
+            </div>
+            <div class="row">
+              <div class="label">Voltage Difference</div>
+              <div class="diff" id="voltDiff">--</div>
+            </div>
+            <div class="row">
+              <div class="label">Model Accuracy</div>
+              <div class="diff" id="accuracy">--</div>
+            </div>
+            <div class="accuracy-trend">
+              <span class="muted">Avg. Accuracy:</span>
+              <div class="accuracy-bar">
+                <div class="accuracy-fill" id="avgAccuracyFill"></div>
+              </div>
+              <span id="avgAccuracy">--</span>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <button class="btn accent" id="compareNow" aria-label="Compare now">Compare Now</button>
+            <div class="small muted" style="margin-top:8px">Click to update comparison with current readings</div>
+            <div id="lastCompare" class="small muted" style="margin-top:4px">Last compared: Never</div>
+          </div>
+        </div>
+      </div>
+      <!-- Live chart -->
+      <div class="card span12">
+        <div class="row">
+          <div class="label">Virtual vs Actual Trends</div>
+          <div class="pill small">
+            <span class="muted">Show:</span>
+            <label><input type="checkbox" id="showVirtualSOC" checked> Virtual SOC</label>
+            <label><input type="checkbox" id="showActualSOC" checked> Actual SOC</label>
+            <label><input type="checkbox" id="showVirtualV" checked> Virtual Voltage</label>
+            <label><input type="checkbox" id="showActualV" checked> Actual Voltage</label>
+            <label><input type="checkbox" id="showLoad" checked> Load</label>
+          </div>
+        </div>
+        <div id="chartContainer" style="position: relative; height: 300px;">
+          <canvas id="chart" height="140"></canvas>
+          <div id="chartEmptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📊</div>
+            <p>No data available. Start simulation to see trends.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Manual Load Control -->
+      <div class="card span6" id="manualLoadPanel" style="display:none">
+        <h2>🎛️ Manual Load Control</h2>
+        <div class="row">
+          <div class="label">Manual Load</div>
+          <div><span id="manualLoadOut" class="virtual-val">20</span> <span class="muted">W</span></div>
+        </div>
+        <input id="manualLoad" class="slider" type="range" min="0" max="150" step="1" value="20" aria-label="Adjust manual load">
+        <div class="divider"></div>
+        <div class="row">
+          <div class="label">Manual Temperature</div>
+          <div><span id="manualTempOut" class="virtual-val">20</span> <span class="muted">°C</span></div>
+        </div>
+        <input id="manualTemp" class="slider" type="range" min="-15" max="50" step="1" value="20" aria-label="Adjust manual temperature">
+      </div>
+      <!-- Comparison Log -->
+      <div class="card span6">
+        <h2>📋 Comparison Log</h2>
+        <div class="btn-group">
+          <button class="btn ghost" id="exportComparison" aria-label="Export log as CSV">Export CSV</button>
+          <button class="btn ghost" id="exportJson" aria-label="Export log as JSON">Export JSON</button>
+          <button class="btn ghost" id="importCSV" aria-label="Import CSV file">Import CSV</button>
+          <button class="btn ghost" id="batchImportBtn" aria-label="Batch import data">Batch Import</button>
+          <input type="file" id="csvFile" accept=".csv" style="display:none">
+          <button class="btn red" id="clearComparison" aria-label="Clear log">Clear Log</button>
+        </div>
+        <input id="logSearch" class="search-input" placeholder="Search log..." aria-label="Search comparison log">
+        <div id="logContainer">
+          <table class="table" id="comparisonTbl" style="margin-top:12px">
+            <thead><tr><th>Time</th><th>V-SOC</th><th>A-SOC</th><th>Diff</th><th>V-Volts</th><th>A-Volts</th><th>True Volts</th><th>Tag</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div id="logEmptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📋</div>
+            <p>No comparison data available. Use "Compare Now" to add entries.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Batch Import Panel -->
+      <div class="card span12" id="batchImportPanel" style="display:none">
+        <h2>📥 Batch Import Data</h2>
+        <div class="batch-import-panel">
+          <div class="import-format">
+            Format: Time, Voltage, Load, Temperature, Notes (one entry per line)<br>
+            Example: 8:30pm, 12.73, 27, 24, Connected to laptop
+          </div>
+          <textarea id="batchData" class="batch-textarea" placeholder="Paste your data here..."></textarea>
+          <div class="btn-group">
+            <button class="btn accent" id="processBatch">Process Data</button>
+            <button class="btn ghost" id="cancelBatch">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <!-- Advanced Settings -->
+      <div class="card span12">
+        <details>
+          <summary>⚙️ Battery Model Configuration</summary>
+          <div class="grid" style="margin-top:12px">
+            <div class="span3">
+              <div class="label">
+                Rated Capacity (Ah)
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">The rated capacity of the battery in Amp-hours (Ah). Affects overall energy storage calculation.</span>
+                </div>
+              </div>
+              <input id="capAh" type="number" value="130" min="20" max="400" step="1" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Rated capacity in Ah">
+              <div class="validation-error" id="capAhError">Capacity must be between 20 and 400 Ah</div>
+            </div>
+            <div class="span3">
+              <div class="label">
+                Peukert Exponent (k)
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Peukert's exponent models how capacity changes with discharge rate. Higher values indicate more loss at high loads. Typical for lead-acid: 1.1-1.3</span>
+                </div>
+              </div>
+              <input id="peukert" type="number" value="1.12" min="1.00" max="1.30" step="0.01" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Peukert exponent">
+              <div class="validation-error" id="peukertError">Peukert exponent must be between 1.00 and 1.30</div>
+            </div>
+            <div class="span3">
+              <div class="label">
+                System Efficiency
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Overall system efficiency (0-1). Accounts for losses in conversion and wiring. Lower values mean more energy wasted as heat.</span>
+                </div>
+              </div>
+              <input id="efficiency" type="number" value="0.95" min="0.80" max="1.00" step="0.01" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="System efficiency">
+              <div class="validation-error" id="efficiencyError">Efficiency must be between 0.80 and 1.00</div>
+            </div>
+            <div class="span3">
+              <div class="label">
+                Update Rate
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">How frequently the virtual battery simulation updates. Faster rates provide smoother animation but may impact performance.</span>
+                </div>
+              </div>
+              <select id="updateRate" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Select update rate">
+                <option value="1000">1 second</option>
+                <option value="5000" selected>5 seconds</option>
+                <option value="10000">10 seconds</option>
+                <option value="30000">30 seconds</option>
+              </select>
+            </div>
+            <div class="span3">
+              <div class="label">
+                Time Speed
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Simulation speed multiplier. 1x is real-time, higher values accelerate the simulation for faster testing.</span>
+                </div>
+              </div>
+              <select id="timeSpeed" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Select time speed">
+                <option value="1" selected>1x (Real-time)</option>
+                <option value="10">10x</option>
+                <option value="60">60x (1min = 1hr)</option>
+                <option value="600">600x (1s = 10min)</option>
+                <option value="3600">3600x (1s = 1hr)</option>
+              </select>
+            </div>
+            <div class="span3">
+              <div class="label">
+                Temp Compensation (V/°C for 12V)
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Temperature compensation coefficient for voltage (V/°C for 12V battery). Typical value: 0.024-0.03</span>
+                </div>
+              </div>
+              <input id="tempCoeff" type="number" value="0.03" min="0.024" max="0.03" step="0.001" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Temperature compensation coefficient">
+              <div class="validation-error" id="tempCoeffError">Temp coefficient must be between 0.024 and 0.03</div>
+            </div>
+            <div class="span3">
+              <div class="label">
+                Load Voltage Correction (V)
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Fixed voltage correction added to under-load measurements to estimate rested voltage.</span>
+                </div>
+              </div>
+              <input id="loadCorrection" type="number" value="0.1" min="0.05" max="0.2" step="0.01" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Load voltage correction">
+              <div class="validation-error" id="loadCorrectionError">Load correction must be between 0.05 and 0.2</div>
+            </div>
+            <div class="span3">
+              <div class="label">
+                True Meter Reading (V)
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Enter the voltage reading from an external voltmeter for comparison with the input voltage.</span>
+                </div>
+              </div>
+              <input id="trueVoltage" type="number" step="0.01" min="11" max="13.5" placeholder="e.g. 13.0" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="True voltage reading">
+            </div>
+            <div class="span3">
+              <div class="label">
+                Calibrate Rested 100% Voltage
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">Shift the rested SOC curve so this voltage corresponds to 100% SOC.</span>
+                </div>
+              </div>
+              <div class="row">
+                <input id="calibVoltage" type="number" step="0.01" min="12" max="13.5" placeholder="e.g. 12.70" style="width:100%;background:#0f121b;border:1px solid #263043;border-radius:10px;color:var(--text);padding:10px" aria-label="Calibrate rested voltage for 100% SOC">
+                <button class="btn accent" id="calibrate" aria-label="Calibrate curve">Calibrate</button>
+              </div>
+              <div class="validation-error" id="calibVoltageError">Voltage must be between 12V and 13.5V</div>
+            </div>
+            <div class="span12">
+              <div class="label">
+                Rested Voltage → SoC Curve
+                <div class="tooltip">
+                  ℹ️
+                  <span class="tooltiptext">This curve is used for rested voltage SOC calculation. Under-load uses correction + this curve.</span>
+                </div>
+              </div>
+              <pre id="curveView" style="background:#0f121b;border:1px solid #263043;border-radius:12px;padding:12px;overflow:auto;margin-top:8px"></pre>
+            </div>
+            <div class="span12">
+              <button class="btn accent" id="validateModel" aria-label="Validate model configuration">Validate Model</button>
+              <button class="btn ghost" id="resetToDefaults" aria-label="Reset to default settings">Reset to Defaults</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+<script>
+// --------------------------- Utility Functions ---------------------------
+function debounce(func, delay) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
+}
+function escapeHtml(unsafe) {
+  return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function formatTime(seconds) {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+function fmt(x, dec) {
+  return x.toFixed(dec);
+}
+function interpSOC(volt, temp, isRested) {
+  const tempCoeff = parseFloat(els.tempCoeff.value) || 0.03;
+  const loadCorrection = parseFloat(els.loadCorrection.value) || 0.1;
+  const voltAt25C = isRested ? volt : volt + loadCorrection;
+  const voltAtTemp = voltAt25C - (temp - 25) * tempCoeff;
+  
+  const curve = VOLT_SOC_RESTED;
+  if (voltAtTemp <= curve[0][0]) return curve[0][1];
+  if (voltAtTemp >= curve[curve.length - 1][0]) return curve[curve.length - 1][1];
+  
+  for (let i = 0; i < curve.length - 1; i++) {
+    if (voltAtTemp >= curve[i][0] && voltAtTemp <= curve[i + 1][0]) {
+      const frac = (voltAtTemp - curve[i][0]) / (curve[i + 1][0] - curve[i][0]);
+      return curve[i][1] + frac * (curve[i + 1][1] - curve[i][1]);
+    }
+  }
+  return 50;
+}
+function socToVoltage(soc, temp = 25) {
+  const curve = VOLT_SOC_RESTED;
+  if (soc <= curve[0][1]) return curve[0][0];
+  if (soc >= curve[curve.length - 1][1]) return curve[curve.length - 1][0];
+  
+  for (let i = 0; i < curve.length - 1; i++) {
+    if (soc >= curve[i][1] && soc <= curve[i + 1][1]) {
+      const frac = (soc - curve[i][1]) / (curve[i + 1][1] - curve[i][1]);
+      return curve[i][0] + frac * (curve[i + 1][0] - curve[i][0]);
+    }
+  }
+  return 12.0;
+}
+function tempCapacityFactor(temp) {
+  if (temp >= 25) return 1.0;
+  return 1.0 + (25 - temp) * 0.006;
+}
+function peukertFactor(load, nominalV, capAh, k) {
+  const I = load / nominalV;
+  const C = capAh;
+  const t = 20;
+  return Math.pow(C / (I * t), k - 1);
+}
+function getVirtualLoad(profile, seconds) {
+  switch (profile) {
+    case 'constant':
+      return 20;
+    case 'variable':
+      return 20 + 10 * Math.sin(seconds / 30);
+    case 'realistic':
+      const hour = (seconds / 3600) % 24;
+      if (hour < 6) return 5;
+      if (hour < 9) return 50;
+      if (hour < 17) return 20;
+      if (hour < 21) return 80;
+      return 30;
+    case 'manual':
+      return parseFloat(els.manualLoad.value) || 20;
+    case 'actual':
+      return parseFloat(els.w.value) || 20;
+    default:
+      return 20;
+  }
+}
+function getVirtualTemp(profile, seconds) {
+  switch (profile) {
+    case 'constant':
+      return 20;
+    case 'variable':
+      return 20 + 5 * Math.sin(seconds / 60);
+    case 'realistic':
+      const hour = (seconds / 3600) % 24;
+      if (hour < 6) return 15;
+      if (hour < 9) return 18;
+      if (hour < 17) return 22;
+      if (hour < 21) return 25;
+      return 20;
+    case 'manual':
+      return parseFloat(els.manualTemp.value) || 20;
+    case 'actual':
+      return parseFloat(els.t.value) || 20;
+    default:
+      return 20;
+  }
+}
+function renderCurve() {
+  els.curveView.textContent = JSON.stringify(VOLT_SOC_RESTED, null, 2);
+}
+
+// --------------------------- Toast Notification System ---------------------------
+function showToast(message, type = 'info', duration = 3000) {
+  const toastContainer = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  
+  let icon = '';
+  switch (type) {
+    case 'success': icon = '✓'; break;
+    case 'error': icon = '✗'; break;
+    case 'warning': icon = '⚠'; break;
+    default: icon = 'ℹ';
+  }
+  
+  toast.innerHTML = `
+    <span class="toast-icon">${icon}</span>
+    <span>${message}</span>
+    <button class="toast-close">&times;</button>
+  `;
+  
+  toastContainer.appendChild(toast);
+  
+  // Auto-remove after duration
+  const timeoutId = setTimeout(() => {
+    toast.remove();
+  }, duration);
+  
+  // Manual close
+  toast.querySelector('.toast-close').addEventListener('click', () => {
+    clearTimeout(timeoutId);
+    toast.remove();
+  });
+}
+
+// --------------------------- Modal Confirmation System ---------------------------
+function showModal(title, message, onConfirm) {
+  const modal = document.getElementById('confirmModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalMessage = document.getElementById('modalMessage');
+  const modalConfirm = document.getElementById('modalConfirm');
+  const modalCancel = document.getElementById('modalCancel');
+  const modalClose = document.getElementById('modalClose');
+  
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  modal.style.display = 'block';
+  
+  const confirmHandler = () => {
+    modal.style.display = 'none';
+    onConfirm();
+    cleanup();
+  };
+  
+  const cancelHandler = () => {
+    modal.style.display = 'none';
+    cleanup();
+  };
+  
+  function cleanup() {
+    modalConfirm.removeEventListener('click', confirmHandler);
+    modalCancel.removeEventListener('click', cancelHandler);
+    modalClose.removeEventListener('click', cancelHandler);
+  }
+  
+  modalConfirm.addEventListener('click', confirmHandler);
+  modalCancel.addEventListener('click', cancelHandler);
+  modalClose.addEventListener('click', cancelHandler);
+  
+  // Close on outside click
+  window.addEventListener('click', function outsideClick(event) {
+    if (event.target === modal) {
+      cancelHandler();
+      window.removeEventListener('click', outsideClick);
+    }
+  });
+}
+
+// --------------------------- Validation Functions ---------------------------
+function validateInput(inputId, errorId, min, max, required = true) {
+  const input = document.getElementById(inputId);
+  const error = document.getElementById(errorId);
+  const value = parseFloat(input.value);
+  
+  if (required && (isNaN(value) || input.value === '')) {
+    input.classList.add('input-error');
+    error.style.display = 'block';
+    error.textContent = 'This field is required';
+    return false;
+  }
+  
+  if (!isNaN(value) && (value < min || value > max)) {
+    input.classList.add('input-error');
+    error.style.display = 'block';
+    error.textContent = `Value must be between ${min} and ${max}`;
+    return false;
+  }
+  
+  input.classList.remove('input-error');
+  error.style.display = 'none';
+  return true;
+}
+
+function validateConfig() {
+  let isValid = true;
+  
+  isValid = validateInput('capAh', 'capAhError', 20, 400) && isValid;
+  isValid = validateInput('peukert', 'peukertError', 1.00, 1.30) && isValid;
+  isValid = validateInput('efficiency', 'efficiencyError', 0.80, 1.00) && isValid;
+  isValid = validateInput('tempCoeff', 'tempCoeffError', 0.024, 0.03) && isValid;
+  isValid = validateInput('loadCorrection', 'loadCorrectionError', 0.05, 0.2) && isValid;
+  
+  // Check curve for monotonic increasing
+  for (let i = 1; i < VOLT_SOC_RESTED.length; i++) {
+    if (VOLT_SOC_RESTED[i][0] <= VOLT_SOC_RESTED[i-1][0] || VOLT_SOC_RESTED[i][1] <= VOLT_SOC_RESTED[i-1][1]) {
+      showToast('Voltage → SoC Curve must be strictly increasing in both voltage and SOC.', 'error');
+      isValid = false;
+      break;
+    }
+  }
+  
+  return isValid;
+}
+
+// --------------------------- Auto-save and Session Restore ---------------------------
+function saveToLocalStorage() {
+  const config = {
+    capAh: els.capAh.value,
+    peukert: els.peukert.value,
+    efficiency: els.efficiency.value,
+    updateRate: els.updateRate.value,
+    timeSpeed: els.timeSpeed.value,
+    tempCoeff: els.tempCoeff.value,
+    loadCorrection: els.loadCorrection.value,
+    voltSocRested: VOLT_SOC_RESTED,
+    virtualBattery: {
+      currentSOC: virtualBattery.currentSOC,
+      currentVoltage: virtualBattery.currentVoltage,
+      totalEnergyUsed: virtualBattery.totalEnergyUsed,
+      virtualSeconds: virtualBattery.virtualSeconds
+    },
+    comparisonLog: els.comparisonTbl.innerHTML,
+    averageAccuracy: averageAccuracy
+  };
+  
+  localStorage.setItem('batteryConfig', JSON.stringify(config));
+}
+
+function loadFromLocalStorage() {
+  const savedConfig = localStorage.getItem('batteryConfig');
+  if (!savedConfig) return;
+  
+  try {
+    const config = JSON.parse(savedConfig);
+    
+    // Load configuration values
+    els.capAh.value = config.capAh || DEFAULTS.capAh;
+    els.peukert.value = config.peukert || DEFAULTS.peukert;
+    els.efficiency.value = config.efficiency || DEFAULTS.efficiency;
+    els.updateRate.value = config.updateRate || DEFAULTS.updateRate;
+    els.timeSpeed.value = config.timeSpeed || DEFAULTS.timeSpeed;
+    els.tempCoeff.value = config.tempCoeff || DEFAULTS.tempCoeff;
+    els.loadCorrection.value = config.loadCorrection || DEFAULTS.loadCorrection;
+    
+    // Load curve if available
+    if (config.voltSocRested && Array.isArray(config.voltSocRested)) {
+      VOLT_SOC_RESTED = config.voltSocRested;
+      renderCurve();
+    }
+    
+    // Load virtual battery state if available
+    if (config.virtualBattery) {
+      virtualBattery.currentSOC = config.virtualBattery.currentSOC || 100;
+      virtualBattery.currentVoltage = config.virtualBattery.currentVoltage || 12.7;
+      virtualBattery.totalEnergyUsed = config.virtualBattery.totalEnergyUsed || 0;
+      virtualBattery.virtualSeconds = config.virtualBattery.virtualSeconds || 0;
+      
+      // Update UI
+      els.vSocNum.textContent = `${Math.round(virtualBattery.currentSOC)}%`;
+      els.vVoltNum.textContent = `${fmt(virtualBattery.currentVoltage, 2)}V`;
+      els.energyUsed.textContent = fmt(virtualBattery.totalEnergyUsed, 1);
+      els.vBatteryTime.textContent = `Runtime: ${formatTime(Math.floor(virtualBattery.virtualSeconds))}`;
+    }
+    
+    // Load comparison log if available
+    if (config.comparisonLog) {
+      els.comparisonTbl.innerHTML = config.comparisonLog;
+      updateLogVisibility();
+    }
+    
+    // Load average accuracy if available
+    if (config.averageAccuracy !== undefined) {
+      averageAccuracy = config.averageAccuracy;
+      updateAverageAccuracyDisplay();
+    }
+    
+    showToast('Configuration restored from previous session', 'info');
+  } catch (e) {
+    showToast('Failed to restore configuration from previous session', 'error');
+    console.error('Error loading saved config:', e);
+  }
+}
+
+// --------------------------- Tour System ---------------------------
+const tourSteps = [
+  {
+    title: "Welcome to Virtual Battery Monitor",
+    content: "This application simulates a battery's behavior and compares it with actual readings. Let's take a quick tour.",
+    element: null
+  },
+  {
+    title: "Virtual Battery Controls",
+    content: "Start, stop, sync, or reset the virtual battery simulation here. You can also select different load profiles.",
+    element: "#vBatteryStatus"
+  },
+  {
+    title: "Actual Readings",
+    content: "Adjust the actual voltage, load, and temperature using these sliders. The system calculates the actual SOC based on these values.",
+    element: "#voltage"
+  },
+  {
+    title: "Comparison Panel",
+    content: "Compare the virtual battery state with actual readings. Click 'Compare Now' to update the comparison with current values.",
+    element: "#compareNow"
+  },
+  {
+    title: "Trend Visualization",
+    content: "This chart shows the trends over time. You can toggle different data series on and off using the checkboxes.",
+    element: "#chart"
+  },
+  {
+    title: "Comparison Log",
+    content: "All comparison results are logged here. You can export the data, import previous logs, or clear the log.",
+    element: "#comparisonTbl"
+  },
+  {
+    title: "Battery Configuration",
+    content: "Adjust advanced battery model parameters here. Use tooltips for help with each setting.",
+    element: "#capAh"
+  },
+  {
+    title: "Tour Complete",
+    content: "You're all set! The application will auto-save your configuration. Enjoy monitoring your virtual battery!",
+    element: null
+  }
+];
+
+let currentTourStep = 0;
+let tourActive = false;
+
+function startTour() {
+  tourActive = true;
+  currentTourStep = 0;
+  document.getElementById('tourOverlay').style.display = 'block';
+  showTourStep();
+}
+
+function showTourStep() {
+  const step = tourSteps[currentTourStep];
+  const popup = document.getElementById('tourPopup');
+  const overlay = document.getElementById('tourOverlay');
+  
+  // Clear previous highlights
+  document.querySelectorAll('.tour-highlight').forEach(el => {
+    el.classList.remove('tour-highlight');
+  });
+  
+  // Update popup content
+  document.getElementById('tourTitle').textContent = step.title;
+  document.getElementById('tourContent').textContent = step.content;
+  
+  // Update buttons
+  document.getElementById('tourNext').textContent = 
+    currentTourStep < tourSteps.length - 1 ? 'Next' : 'Finish';
+  
+  // Position popup
+  if (step.element) {
+    const target = document.querySelector(step.element);
+    if (target) {
+      target.classList.add('tour-highlight');
+      
+      const rect = target.getBoundingClientRect();
+      popup.style.top = `${rect.bottom + 10}px`;
+      popup.style.left = `${rect.left}px`;
+      
+      // Adjust if popup goes off-screen
+      if (rect.bottom + popup.offsetHeight > window.innerHeight) {
+        popup.style.top = `${rect.top - popup.offsetHeight - 10}px`;
+      }
+      
+      if (rect.left + popup.offsetWidth > window.innerWidth) {
+        popup.style.left = `${window.innerWidth - popup.offsetWidth - 20}px`;
+      }
+    } else {
+      // Center if element not found
+      popup.style.top = '50%';
+      popup.style.left = '50%';
+      popup.style.transform = 'translate(-50%, -50%)';
+    }
+  } else {
+    // Center if no element
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+  }
+}
+
+function nextTourStep() {
+  currentTourStep++;
+  if (currentTourStep >= tourSteps.length) {
+    endTour();
+  } else {
+    showTourStep();
+  }
+}
+
+function endTour() {
+  tourActive = false;
+  document.getElementById('tourOverlay').style.display = 'none';
+  document.querySelectorAll('.tour-highlight').forEach(el => {
+    el.classList.remove('tour-highlight');
+  });
+  
+  // Mark tour as completed
+  localStorage.setItem('tourCompleted', 'true');
+}
+
+// --------------------------- Default configurations ---------------------------
+const DEFAULTS = {
+  capAh: 130,
+  peukert: 1.12,
+  efficiency: 0.95,
+  updateRate: 5000,
+  timeSpeed: 1,
+  tempCoeff: 0.03,
+  loadCorrection: 0.1,
+  voltSocRested: [
+    [11.31, 10], [11.58, 20], [11.75, 30], [11.90, 40], [12.06, 50],
+    [12.20, 60], [12.32, 70], [12.42, 80], [12.50, 90], [12.70, 100]
+  ]
+};
+
+// --------------------------- Virtual Battery Engine ---------------------------
+let virtualBattery = {
+  running: false,
+  currentSOC: 100,
+  currentVoltage: 12.7,
+  totalEnergyUsed: 0,
+  timer: null,
+  startSOC: 100,
+  virtualSeconds: 0,
+  lastActualVoltage: 12.7,
+  lastActualTime: Date.now()
+};
+
+// Track average accuracy across all comparisons
+let averageAccuracy = 0;
+let accuracySum = 0;
+let accuracyCount = 0;
+
+const els = {
+  // Virtual battery controls
+  startVBattery: document.getElementById('startVBattery'),
+  syncVBattery: document.getElementById('syncVBattery'),
+  resetVBattery: document.getElementById('resetVBattery'),
+  vBatteryStatus: document.getElementById('vBatteryStatus'),
+  vBatteryInd: document.getElementById('vBatteryInd'),
+  vBatteryTime: document.getElementById('vBatteryTime'),
+  loadProfile: document.getElementById('loadProfile'),
+  currentVLoad: document.getElementById('currentVLoad'),
+  currentVTemp: document.getElementById('currentVTemp'),
+  updateRate: document.getElementById('updateRate'),
+  timeSpeed: document.getElementById('timeSpeed'),
+  
+  // Virtual displays
+  vSocNum: document.getElementById('vSocNum'),
+  vVoltNum: document.getElementById('vVoltNum'),
+  vRtNum: document.getElementById('vRtNum'),
+  energyUsed: document.getElementById('energyUsed'),
+  
+  // Actual readings
+  v: document.getElementById('voltage'), vOut: document.getElementById('vOut'),
+  w: document.getElementById('load'), wOut: document.getElementById('wOut'),
+  t: document.getElementById('temp'), tOut: document.getElementById('tOut'),
+  isRested: document.getElementById('isRested'),
+  notes: document.getElementById('notes'),
+  aSocNum: document.getElementById('aSocNum'),
+  aRtNum: document.getElementById('aRtNum'),
+  
+  // Comparison
+  compareNow: document.getElementById('compareNow'),
+  socDiff: document.getElementById('socDiff'),
+  voltDiff: document.getElementById('voltDiff'),
+  accuracy: document.getElementById('accuracy'),
+  lastCompare: document.getElementById('lastCompare'),
+  comparisonTbl: document.getElementById('comparisonTbl').querySelector('tbody'),
+  exportComparison: document.getElementById('exportComparison'),
+  exportJson: document.getElementById('exportJson'),
+  importCSV: document.getElementById('importCSV'),
+  csvFile: document.getElementById('csvFile'),
+  clearComparison: document.getElementById('clearComparison'),
+  logSearch: document.getElementById('logSearch'),
+  
+  // Manual controls
+  manualLoadPanel: document.getElementById('manualLoadPanel'),
+  manualLoad: document.getElementById('manualLoad'),
+  manualLoadOut: document.getElementById('manualLoadOut'),
+  manualTemp: document.getElementById('manualTemp'),
+  manualTempOut: document.getElementById('manualTempOut'),
+  
+  // Settings
+  capAh: document.getElementById('capAh'),
+  peukert: document.getElementById('peukert'),
+  efficiency: document.getElementById('efficiency'),
+  tempCoeff: document.getElementById('tempCoeff'),
+  loadCorrection: document.getElementById('loadCorrection'),
+  calibVoltage: document.getElementById('calibVoltage'),
+  calibrate: document.getElementById('calibrate'),
+  curveView: document.getElementById('curveView'),
+  validateModel: document.getElementById('validateModel'),
+  resetToDefaults: document.getElementById('resetToDefaults'),
+  trueVoltage: document.getElementById('trueVoltage'),
+  
+  // Chart controls
+  showVirtualSOC: document.getElementById('showVirtualSOC'),
+  showActualSOC: document.getElementById('showActualSOC'),
+  showVirtualV: document.getElementById('showVirtualV'),
+  showActualV: document.getElementById('showActualV'),
+  showLoad: document.getElementById('showLoad'),
+  
+  // UI elements
+  chartEmptyState: document.getElementById('chartEmptyState'),
+  logEmptyState: document.getElementById('logEmptyState'),
+  logContainer: document.getElementById('logContainer'),
+  
+  // Calibration prompt
+  calibrationPrompt: document.getElementById('calibrationPrompt'),
+  dismissCalibration: document.getElementById('dismissCalibration'),
+  acceptCalibration: document.getElementById('acceptCalibration'),
+  
+  // Batch import
+  batchImportBtn: document.getElementById('batchImportBtn'),
+  batchImportPanel: document.getElementById('batchImportPanel'),
+  batchData: document.getElementById('batchData'),
+  processBatch: document.getElementById('processBatch'),
+  cancelBatch: document.getElementById('cancelBatch'),
+  
+  // Average accuracy
+  avgAccuracy: document.getElementById('avgAccuracy'),
+  avgAccuracyFill: document.getElementById('avgAccuracyFill')
+};
+
+// Battery model parameters
+let VOLT_SOC_RESTED = [...DEFAULTS.voltSocRested];
+const TEMP_BASE = 25;
+
+// --------------------------- Chart Setup ---------------------------
+let chart;
+let chartData = [];
+const maxDataPoints = 50;
+
+function initChart() {
+  const ctx = document.getElementById('chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Virtual SOC (%)',
+          data: [],
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          hidden: !els.showVirtualSOC.checked
+        },
+        {
+          label: 'Actual SOC (%)',
+          data: [],
+          borderColor: '#4ade80',
+          backgroundColor: 'rgba(74, 222, 128, 0.1)',
+          hidden: !els.showActualSOC.checked
+        },
+        {
+          label: 'Virtual Voltage (V)',
+          data: [],
+          borderColor: '#60a5fa',
+          backgroundColor: 'rgba(96, 165, 250, 0.1)',
+          hidden: !els.showVirtualV.checked,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Actual Voltage (V)',
+          data: [],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          hidden: !els.showActualV.checked,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Load (W)',
+          data: [],
+          borderColor: '#f97316',
+          backgroundColor: 'rgba(249, 115, 22, 0.1)',
+          hidden: !els.showLoad.checked,
+          yAxisID: 'y2'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: {
+            display: true,
+            text: 'SOC (%)',
+            color: '#e8ecf1'
+          },
+          ticks: { color: '#e8ecf1' },
+          grid: { color: '#1f2633' }
+        },
+        y1: {
+          position: 'right',
+          beginAtZero: false,
+          min: 11,
+          max: 13.2,
+          title: {
+            display: true,
+            text: 'Voltage (V)',
+            color: '#e8ecf1'
+          },
+          ticks: { color: '#e8ecf1' },
+          grid: { display: false }
+        },
+        y2: {
+          position: 'right',
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Load (W)',
+            color: '#e8ecf1'
+          },
+          ticks: { color: '#e8ecf1' },
+          grid: { display: false }
+        },
+        x: {
+          ticks: { color: '#e8ecf1' },
+          grid: { color: '#1f2633' }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#e8ecf1' }
+        }
+      }
+    }
+  });
+  
+  updateChartVisibility();
+}
+
+function updateChartVisibility() {
+  if (chartData.length === 0) {
+    document.getElementById('chart').style.display = 'none';
+    els.chartEmptyState.style.display = 'flex';
+  } else {
+    document.getElementById('chart').style.display = 'block';
+    els.chartEmptyState.style.display = 'none';
+  }
+}
+
+function pushChartPoint(data) {
+  const time = new Date().toLocaleTimeString();
+  chartData.push({ time, ...data });
+  
+  if (chartData.length > maxDataPoints) {
+    chartData.shift();
+  }
+  
+  updateChart();
+  updateChartVisibility();
+}
+
+function updateChart() {
+  if (!chart) return;
+  
+  chart.data.labels = chartData.map(d => d.time);
+  chart.data.datasets[0].data = chartData.map(d => d.virtualSOC);
+  chart.data.datasets[1].data = chartData.map(d => d.actualSOC);
+  chart.data.datasets[2].data = chartData.map(d => d.virtualV);
+  chart.data.datasets[3].data = chartData.map(d => d.actualV);
+  chart.data.datasets[4].data = chartData.map(d => d.load);
+  
+  chart.update();
+}
+
+// --------------------------- Virtual Battery Simulation ---------------------------
+function startVirtualBattery() {
+  if (!validateConfig()) {
+    showToast('Cannot start simulation: Invalid configuration', 'error');
+    return;
+  }
+  
+  virtualBattery.running = true;
+  virtualBattery.startSOC = virtualBattery.currentSOC;
+  els.startVBattery.textContent = 'Stop Virtual Battery';
+  els.vBatteryStatus.textContent = 'Virtual Battery: Running';
+  els.vBatteryInd.classList.add('running');
+  
+  // Initialize with current actual voltage
+  virtualBattery.lastActualVoltage = parseFloat(els.v.value);
+  virtualBattery.lastActualTime = Date.now();
+  
+  showToast('Virtual battery simulation started', 'success');
+  runVirtualBatteryStep();
+}
+
+function stopVirtualBattery() {
+  virtualBattery.running = false;
+  if (virtualBattery.timer) {
+    clearTimeout(virtualBattery.timer);
+    virtualBattery.timer = null;
+  }
+  
+  els.startVBattery.textContent = 'Start Virtual Battery';
+  els.vBatteryStatus.textContent = 'Virtual Battery: Stopped';
+  els.vBatteryInd.classList.remove('running');
+  
+  showToast('Virtual battery simulation stopped', 'info');
+  saveToLocalStorage();
+}
+
+function syncVirtualBattery() {
+  if (!validateConfig()) {
+    showToast('Cannot sync: Invalid configuration', 'error');
+    return;
+  }
+  
+  const actualSOC = interpSOC(
+    parseFloat(els.v.value),
+    parseFloat(els.t.value),
+    els.isRested.checked
+  );
+  
+  virtualBattery.currentSOC = actualSOC;
+  virtualBattery.currentVoltage = parseFloat(els.v.value);
+  
+  // Update the last actual voltage and time
+  virtualBattery.lastActualVoltage = parseFloat(els.v.value);
+  virtualBattery.lastActualTime = Date.now();
+  
+  els.vSocNum.textContent = `${Math.round(actualSOC)}%`;
+  els.vVoltNum.textContent = `${fmt(parseFloat(els.v.value), 2)}V`;
+  
+  els.vBatteryInd.classList.add('synced');
+  setTimeout(() => {
+    els.vBatteryInd.classList.remove('synced');
+  }, 2000);
+  
+  showToast('Virtual battery synced to actual readings', 'success');
+  saveToLocalStorage();
+}
+
+function resetVirtualBattery() {
+  showModal(
+    'Reset Virtual Battery',
+    'This will reset the virtual battery to full charge and clear all simulation data. Continue?',
+    () => {
+      stopVirtualBattery();
+      virtualBattery.currentSOC = 100;
+      virtualBattery.currentVoltage = socToVoltage(100);
+      virtualBattery.totalEnergyUsed = 0;
+      virtualBattery.virtualSeconds = 0;
+      virtualBattery.lastActualVoltage = 12.7;
+      virtualBattery.lastActualTime = Date.now();
+      
+      els.vSocNum.textContent = '100%';
+      els.vVoltNum.textContent = '12.70V';
+      els.vRtNum.textContent = '-- h';
+      els.energyUsed.textContent = '0.0';
+      els.vBatteryTime.textContent = 'Runtime: 00:00:00';
+      
+      chartData = [];
+      updateChart();
+      updateChartVisibility();
+      
+      // Reset accuracy tracking
+      accuracySum = 0;
+      accuracyCount = 0;
+      averageAccuracy = 0;
+      updateAverageAccuracyDisplay();
+      
+      showToast('Virtual battery has been reset', 'success');
+      saveToLocalStorage();
+    }
+  );
+}
+
+function runVirtualBatteryStep() {
+  if (!virtualBattery.running) return;
+  
+  if (!validateConfig()) {
+    stopVirtualBattery();
+    return;
+  }
+  
+  const updateIntervalMs = parseInt(els.updateRate.value);
+  const timeMultiplier = parseFloat(els.timeSpeed.value) || 1;
+  const timeStepSeconds = (updateIntervalMs / 1000) * timeMultiplier;
+  const timeStepHours = timeStepSeconds / 3600;
+  
+  virtualBattery.virtualSeconds += timeStepSeconds;
+  
+  els.vBatteryTime.textContent = `Runtime: ${formatTime(Math.floor(virtualBattery.virtualSeconds))}`;
+  
+  const virtualLoad = getVirtualLoad(els.loadProfile.value, virtualBattery.virtualSeconds);
+  const virtualTemp = getVirtualTemp(els.loadProfile.value, virtualBattery.virtualSeconds);
+  
+  els.currentVLoad.textContent = fmt(virtualLoad, 0);
+  els.currentVTemp.textContent = fmt(virtualTemp, 0);
+  
+  const capAh = parseFloat(els.capAh.value) || 130;
+  const k = parseFloat(els.peukert.value) || 1.12;
+  const efficiency = parseFloat(els.efficiency.value) || 0.95;
+  
+  const tempF = tempCapacityFactor(virtualTemp);
+  const peukF = peukertFactor(virtualLoad, 12, capAh, k);
+  const effectiveCapAh = capAh * tempF * peukF;
+  
+  const energyConsumed = virtualLoad * timeStepHours;
+  const capacityConsumed = (energyConsumed / efficiency) / 12;
+  const socDropPercent = (capacityConsumed / effectiveCapAh) * 100;
+  
+  // Track actual voltage changes and adjust virtual battery accordingly
+  const currentActualVoltage = parseFloat(els.v.value);
+  const now = Date.now();
+  const timeSinceLastActual = (now - virtualBattery.lastActualTime) / 1000; // in seconds
+  
+  // If actual voltage has changed significantly, update virtual battery
+  if (Math.abs(currentActualVoltage - virtualBattery.lastActualVoltage) > 0.05) {
+    // Calculate voltage drop rate
+    const voltageDropRate = (virtualBattery.lastActualVoltage - currentActualVoltage) / timeSinceLastActual;
+    
+    // Adjust virtual battery voltage based on actual voltage change
+    virtualBattery.currentVoltage = currentActualVoltage;
+    
+    // Adjust virtual SOC based on voltage change
+    const voltageChange = virtualBattery.lastActualVoltage - currentActualVoltage;
+    const socChange = voltageChange * 100; // Approximate 1V = 100% SOC change
+    virtualBattery.currentSOC = Math.max(0, Math.min(100, virtualBattery.currentSOC - socChange));
+    
+    // Update last actual voltage and time
+    virtualBattery.lastActualVoltage = currentActualVoltage;
+    virtualBattery.lastActualTime = now;
+  } else {
+    // Normal discharge calculation
+    virtualBattery.currentSOC = Math.max(0, virtualBattery.currentSOC - socDropPercent);
+    virtualBattery.currentVoltage = socToVoltage(virtualBattery.currentSOC, virtualTemp);
+  }
+  
+  virtualBattery.totalEnergyUsed += energyConsumed;
+  
+  const remainingSOC = Math.max(0, virtualBattery.currentSOC - 50);
+  const remainingCapacity = (remainingSOC / 100) * effectiveCapAh;
+  const remainingWh = remainingCapacity * 12;
+  let runtimeHours = virtualLoad > 0 ? remainingWh / (virtualLoad / efficiency) : Infinity;
+  if (runtimeHours > 10000) runtimeHours = Infinity;
+  
+  els.vSocNum.textContent = `${Math.round(virtualBattery.currentSOC)}%`;
+  els.vVoltNum.textContent = `${fmt(virtualBattery.currentVoltage, 2)}V`;
+  els.vRtNum.textContent = runtimeHours === Infinity ? '∞' : `${fmt(runtimeHours, 1)} h`;
+  els.energyUsed.textContent = fmt(virtualBattery.totalEnergyUsed, 1);
+  
+  pushChartPoint({
+    virtualSOC: virtualBattery.currentSOC,
+    virtualV: virtualBattery.currentVoltage,
+    actualSOC: interpSOC(parseFloat(els.v.value), parseFloat(els.t.value), els.isRested.checked),
+    actualV: parseFloat(els.v.value),
+    load: virtualLoad
+  });
+  
+  if (virtualBattery.currentSOC <= 0) {
+    stopVirtualBattery();
+    showToast('Virtual battery depleted! Simulation stopped.', 'warning');
+    return;
+  }
+  
+  virtualBattery.timer = setTimeout(runVirtualBatteryStep, updateIntervalMs);
+}
+
+// --------------------------- Actual Readings Update ---------------------------
+function updateActualReadings() {
+  const v = parseFloat(els.v.value);
+  const w = parseFloat(els.w.value);
+  const t = parseFloat(els.t.value);
+  
+  // Validate inputs
+  validateInput('voltage', 'voltageError', 11.0, 13.2);
+  validateInput('load', 'loadError', 0, 150);
+  validateInput('temp', 'tempError', -15, 50);
+  
+  els.vOut.textContent = fmt(v, 2);
+  els.wOut.textContent = fmt(w, 0);
+  els.tOut.textContent = fmt(t, 0);
+  
+  // CRITICAL FIX: Always recalculate actual SOC based on current values
+  const soc = interpSOC(v, t, els.isRested.checked);
+  els.aSocNum.textContent = `${Math.round(soc)}%`;
+  
+  const capAh = parseFloat(els.capAh.value) || 130;
+  const efficiency = parseFloat(els.efficiency.value) || 0.95;
+  const remainingSOC = Math.max(0, soc - 50);
+  const remainingCapacity = (remainingSOC / 100) * capAh;
+  const remainingWh = remainingCapacity * 12;
+  let runtimeHours = w > 0 ? remainingWh / (w / efficiency) : Infinity;
+  if (runtimeHours > 10000) runtimeHours = Infinity;
+  
+  els.aRtNum.textContent = runtimeHours === Infinity ? '∞' : `${fmt(runtimeHours, 1)} h`;
+}
+
+// --------------------------- Comparison Functions ---------------------------
+function compareVirtualToActual() {
+  if (!validateConfig()) {
+    showToast('Cannot compare: Invalid configuration', 'error');
+    return;
+  }
+  
+  // CRITICAL FIX: Always get current values at the moment of comparison
+  const vSOC = virtualBattery.currentSOC;
+  
+  // CRITICAL FIX: Always recalculate actual SOC based on current input values
+  const currentVoltage = parseFloat(els.v.value);
+  const currentTemp = parseFloat(els.t.value);
+  const isRested = els.isRested.checked;
+  
+  const aSOC = interpSOC(currentVoltage, currentTemp, isRested);
+  
+  const vVolt = virtualBattery.currentVoltage;
+  const aVolt = currentVoltage; // Use the current voltage value
+  const trueVolt = els.trueVoltage.value ? parseFloat(els.trueVoltage.value) : null;
+  
+  const socDiff = Math.abs(vSOC - aSOC);
+  const voltDiff = Math.abs(vVolt - aVolt);
+  
+  // Update comparison display
+  els.socDiff.textContent = `${fmt(socDiff, 1)}%`;
+  els.socDiff.className = 'diff ' + (socDiff < 5 ? 'good' : socDiff < 10 ? 'warn' : 'bad');
+  
+  els.voltDiff.textContent = `${fmt(voltDiff, 2)}V`;
+  els.voltDiff.className = 'diff ' + (voltDiff < 0.1 ? 'good' : voltDiff < 0.2 ? 'warn' : 'bad');
+  
+  // Calculate accuracy
+  const accuracy = 100 - (socDiff * 2 + voltDiff * 50);
+  const displayAccuracy = Math.max(0, accuracy);
+  els.accuracy.textContent = `${fmt(displayAccuracy, 1)}%`;
+  els.accuracy.className = 'diff ' + (displayAccuracy > 90 ? 'good' : displayAccuracy > 75 ? 'warn' : 'bad');
+  
+  // Update average accuracy tracking
+  accuracySum += displayAccuracy;
+  accuracyCount++;
+  averageAccuracy = accuracySum / accuracyCount;
+  updateAverageAccuracyDisplay();
+  
+  const now = new Date();
+  els.lastCompare.textContent = `Last compared: ${now.toLocaleTimeString()}`;
+  
+  // Add to log - CRITICAL FIX: Pass the current values, not cached ones
+  addComparisonLogEntry(vSOC, aSOC, socDiff, vVolt, aVolt, trueVolt, els.notes.value);
+  
+  // Warn if accuracy is poor
+  if (displayAccuracy < 75) {
+    showToast(`Model accuracy is low (${fmt(displayAccuracy, 1)}%). Consider recalibrating.`, 'warning');
+  }
+  
+  showToast('Comparison completed', 'success');
+}
+
+function updateAverageAccuracyDisplay() {
+  if (accuracyCount > 0) {
+    els.avgAccuracy.textContent = `${fmt(averageAccuracy, 1)}%`;
+    els.avgAccuracyFill.style.width = `${averageAccuracy}%`;
+  } else {
+    els.avgAccuracy.textContent = '--';
+    els.avgAccuracyFill.style.width = '0%';
+  }
+}
+
+function addComparisonLogEntry(vSOC, aSOC, diff, vVolt, aVolt, trueVolt, tag) {
+  if (isNaN(aSOC) || aSOC < 0 || aSOC > 100 || isNaN(aVolt) || aVolt < 11 || aVolt > 13.2) {
+    showToast('Invalid data detected. Not logging.', 'error');
+    return;
+  }
+  
+  const tr = document.createElement('tr');
+  const time = new Date().toLocaleTimeString();
+  tag = escapeHtml(tag || '');
+  const trueVoltText = trueVolt !== null ? fmt(trueVolt, 2) + 'V' : '--';
+  
+  tr.innerHTML = `
+    <td>${time}</td>
+    <td>${vSOC !== undefined ? Math.round(vSOC) + '%' : '--'}</td>
+    <td>${Math.round(aSOC)}%</td>
+    <td>${diff !== undefined ? fmt(diff, 1) + '%' : '--'}</td>
+    <td>${vVolt !== undefined ? fmt(vVolt, 2) + 'V' : '--'}</td>
+    <td>${fmt(aVolt, 2)}V</td>
+    <td>${trueVoltText}</td>
+    <td>${tag}</td>
+  `;
+  
+  els.comparisonTbl.appendChild(tr);
+  
+  while (els.comparisonTbl.children.length > 50) {
+    els.comparisonTbl.removeChild(els.comparisonTbl.firstChild);
+  }
+  
+  updateLogVisibility();
+  saveToLocalStorage();
+}
+
+function updateLogVisibility() {
+  if (els.comparisonTbl.children.length === 0) {
+    document.getElementById('comparisonTbl').style.display = 'none';
+    els.logEmptyState.style.display = 'flex';
+  } else {
+    document.getElementById('comparisonTbl').style.display = 'table';
+    els.logEmptyState.style.display = 'none';
+  }
+}
+
+// --------------------------- Export/Import Functions ---------------------------
+function exportToCSV() {
+  if (els.comparisonTbl.children.length === 0) {
+    showToast('No data to export', 'warning');
+    return;
+  }
+  
+  let csv = 'Time,V-SOC,A-SOC,Diff,V-Volts,A-Volts,True-Volts,Tag\n';
+  
+  els.comparisonTbl.querySelectorAll('tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    const rowData = Array.from(cells).map(cell => {
+      // Remove HTML tags and escape quotes
+      return '"' + cell.textContent.replace(/"/g, '""') + '"';
+    });
+    csv += rowData.join(',') + '\n';
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `battery-comparison-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast('Data exported to CSV', 'success');
+}
+
+function exportToJSON() {
+  if (els.comparisonTbl.children.length === 0) {
+    showToast('No data to export', 'warning');
+    return;
+  }
+  
+  const data = {
+    exportDate: new Date().toISOString(),
+    averageAccuracy: averageAccuracy,
+    comparisonCount: accuracyCount,
+    entries: []
+  };
+  
+  els.comparisonTbl.querySelectorAll('tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 8) {
+      data.entries.push({
+        time: cells[0].textContent,
+        vSOC: cells[1].textContent,
+        aSOC: cells[2].textContent,
+        diff: cells[3].textContent,
+        vVolts: cells[4].textContent,
+        aVolts: cells[5].textContent,
+        trueVolts: cells[6].textContent,
+        tag: cells[7].textContent
+      });
+    }
+  });
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `battery-comparison-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast('Data exported to JSON', 'success');
+}
+
+function importFromCSV() {
+  els.csvFile.click();
+}
+
+function handleCSVImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const csv = e.target.result;
+      const lines = csv.split('\n');
+      
+      // Reset accuracy tracking
+      accuracySum = 0;
+      accuracyCount = 0;
+      averageAccuracy = 0;
+      updateAverageAccuracyDisplay();
+      
+      // Skip header
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const values = line.split(',').map(v => v.replace(/^"|"$/g, ''));
+        
+        if (values.length >= 7) {
+          const vSOC = parseFloat(values[1]);
+          const aSOC = parseFloat(values[2]);
+          const diff = parseFloat(values[3]);
+          const vVolt = parseFloat(values[4]);
+          const aVolt = parseFloat(values[5]);
+          const trueVolt = values[6] !== '--' ? parseFloat(values[6]) : null;
+          const tag = values[7] || '';
+          
+          // Validate data
+          if (isNaN(aSOC) || aSOC < 0 || aSOC > 100 || isNaN(aVolt) || aVolt < 11 || aVolt > 13.2) {
+            showToast(`Invalid data in row ${i}, skipping`, 'warning');
+            continue;
+          }
+          
+          addComparisonLogEntry(vSOC, aSOC, diff, vVolt, aVolt, trueVolt, tag);
+          
+          // Update accuracy tracking
+          if (!isNaN(diff) && !isNaN(vVolt) && !isNaN(aVolt)) {
+            const accuracy = 100 - (diff * 2 + Math.abs(vVolt - aVolt) * 50);
+            const displayAccuracy = Math.max(0, accuracy);
+            accuracySum += displayAccuracy;
+            accuracyCount++;
+            averageAccuracy = accuracySum / accuracyCount;
+            updateAverageAccuracyDisplay();
+          }
+        }
+      }
+      
+      showToast(`Imported ${els.comparisonTbl.children.length} entries`, 'success');
+    } catch (error) {
+      showToast('Failed to import CSV: ' + error.message, 'error');
+      console.error('CSV import error:', error);
+    }
+  };
+  
+  reader.readAsText(file);
+  event.target.value = ''; // Reset file input
+}
+
+function clearComparisonLog() {
+  showModal(
+    'Clear Comparison Log',
+    'This will permanently delete all comparison log entries. This action cannot be undone.',
+    () => {
+      els.comparisonTbl.innerHTML = '';
+      updateLogVisibility();
+      
+      // Reset accuracy tracking
+      accuracySum = 0;
+      accuracyCount = 0;
+      averageAccuracy = 0;
+      updateAverageAccuracyDisplay();
+      
+      showToast('Comparison log cleared', 'info');
+      saveToLocalStorage();
+    }
+  );
+}
+
+// --------------------------- Batch Import Functions ---------------------------
+function showBatchImport() {
+  els.batchImportPanel.style.display = 'block';
+  els.batchData.value = '';
+  els.batchData.focus();
+}
+
+function hideBatchImport() {
+  els.batchImportPanel.style.display = 'none';
+}
+
+function processBatchData() {
+  const data = els.batchData.value.trim();
+  if (!data) {
+    showToast('No data to process', 'warning');
+    return;
+  }
+  
+  const lines = data.split('\n');
+  let processedCount = 0;
+  let errorCount = 0;
+  
+  // Reset accuracy tracking for batch import
+  accuracySum = 0;
+  accuracyCount = 0;
+  averageAccuracy = 0;
+  updateAverageAccuracyDisplay();
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+    
+    // Parse line: Time, Voltage, Load, Temperature, Notes
+    const parts = trimmedLine.split(',').map(part => part.trim());
+    
+    if (parts.length < 3) {
+      errorCount++;
+      continue;
+    }
+    
+    const timeStr = parts[0];
+    const voltage = parseFloat(parts[1]);
+    const load = parts.length > 2 ? parseFloat(parts[2]) : 20;
+    const temp = parts.length > 3 ? parseFloat(parts[3]) : 24;
+    const notes = parts.length > 4 ? parts.slice(4).join(', ') : '';
+    
+    if (isNaN(voltage) || voltage < 11 || voltage > 13.2) {
+      errorCount++;
+      continue;
+    }
+    
+    // Set the values
+    els.v.value = voltage;
+    els.w.value = isNaN(load) ? 20 : load;
+    els.t.value = isNaN(temp) ? 24 : temp;
+    els.notes.value = notes;
+    
+    // Update the UI
+    updateActualReadings();
+    
+    // Run comparison
+    compareVirtualToActual();
+    processedCount++;
+  }
+  
+  hideBatchImport();
+  
+  if (errorCount > 0) {
+    showToast(`Processed ${processedCount} entries with ${errorCount} errors`, 'warning');
+  } else {
+    showToast(`Successfully processed ${processedCount} entries`, 'success');
+  }
+}
+
+// --------------------------- Search Function ---------------------------
+function setupSearch() {
+  els.logSearch.addEventListener('input', debounce(() => {
+    const searchTerm = els.logSearch.value.toLowerCase();
+    const rows = els.comparisonTbl.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+  }, 300));
+}
+
+// --------------------------- Settings Functions ---------------------------
+function calibrateVoltage() {
+  const calibVoltage = parseFloat(els.calibVoltage.value);
+  
+  if (isNaN(calibVoltage) || calibVoltage < 12 || calibVoltage > 13.5) {
+    validateInput('calibVoltage', 'calibVoltageError', 12, 13.5);
+    return;
+  }
+  
+  // Find the current 100% voltage
+  const current100V = VOLT_SOC_RESTED[VOLT_SOC_RESTED.length - 1][0];
+  const diff = calibVoltage - current100V;
+  
+  // Shift all voltages by the difference
+  VOLT_SOC_RESTED = VOLT_SOC_RESTED.map(point => [point[0] + diff, point[1]]);
+  
+  renderCurve();
+  showToast(`Calibrated: 100% SOC is now ${fmt(calibVoltage, 2)}V`, 'success');
+  saveToLocalStorage();
+}
+
+function resetToDefaults() {
+  showModal(
+    'Reset to Defaults',
+    'This will reset all configuration settings to their default values. Continue?',
+    () => {
+      els.capAh.value = DEFAULTS.capAh;
+      els.peukert.value = DEFAULTS.peukert;
+      els.efficiency.value = DEFAULTS.efficiency;
+      els.updateRate.value = DEFAULTS.updateRate;
+      els.timeSpeed.value = DEFAULTS.timeSpeed;
+      els.tempCoeff.value = DEFAULTS.tempCoeff;
+      els.loadCorrection.value = DEFAULTS.loadCorrection;
+      VOLT_SOC_RESTED = [...DEFAULTS.voltSocRested];
+      
+      renderCurve();
+      updateActualReadings();
+      showToast('Configuration reset to defaults', 'info');
+      saveToLocalStorage();
+    }
+  );
+}
+
+function validateModel() {
+  if (validateConfig()) {
+    showToast('Model configuration is valid', 'success');
+  } else {
+    showToast('Model configuration has errors', 'error');
+  }
+}
+
+// --------------------------- Calibration Prompt Functions ---------------------------
+function showCalibrationPrompt() {
+  els.calibrationPrompt.style.display = 'block';
+}
+
+function hideCalibrationPrompt() {
+  els.calibrationPrompt.style.display = 'none';
+}
+
+function acceptCalibration() {
+  const currentVoltage = parseFloat(els.v.value);
+  if (!isNaN(currentVoltage) && currentVoltage >= 12 && currentVoltage <= 13.5) {
+    els.calibVoltage.value = currentVoltage;
+    calibrateVoltage();
+  }
+  hideCalibrationPrompt();
+}
+
+// --------------------------- Event Listeners ---------------------------
+function setupEventListeners() {
+  // Virtual battery controls
+  els.startVBattery.addEventListener('click', () => {
+    if (virtualBattery.running) {
+      stopVirtualBattery();
+    } else {
+      startVirtualBattery();
+    }
+  });
+  
+  els.syncVBattery.addEventListener('click', syncVirtualBattery);
+  els.resetVBattery.addEventListener('click', resetVirtualBattery);
+  
+  // Load profile change
+  els.loadProfile.addEventListener('change', () => {
+    const profile = els.loadProfile.value;
+    els.manualLoadPanel.style.display = profile === 'manual' ? 'block' : 'none';
+    showToast(`Switched to ${profile} load profile`, 'info');
+  });
+  
+  // Actual readings
+  els.v.addEventListener('input', updateActualReadings);
+  els.w.addEventListener('input', updateActualReadings);
+  els.t.addEventListener('input', updateActualReadings);
+  els.isRested.addEventListener('change', () => {
+    updateActualReadings();
+    if (els.isRested.checked) {
+      showCalibrationPrompt();
+    }
+  });
+  
+  // Manual controls
+  els.manualLoad.addEventListener('input', () => {
+    els.manualLoadOut.textContent = els.manualLoad.value;
+  });
+  
+  els.manualTemp.addEventListener('input', () => {
+    els.manualTempOut.textContent = els.manualTemp.value;
+  });
+  
+  // Comparison
+  els.compareNow.addEventListener('click', compareVirtualToActual);
+  
+  // Export/Import
+  els.exportComparison.addEventListener('click', exportToCSV);
+  els.exportJson.addEventListener('click', exportToJSON);
+  els.importCSV.addEventListener('click', importFromCSV);
+  els.csvFile.addEventListener('change', handleCSVImport);
+  els.clearComparison.addEventListener('click', clearComparisonLog);
+  
+  // Batch import
+  els.batchImportBtn.addEventListener('click', showBatchImport);
+  els.processBatch.addEventListener('click', processBatchData);
+  els.cancelBatch.addEventListener('click', hideBatchImport);
+  
+  // Settings
+  els.calibrate.addEventListener('click', calibrateVoltage);
+  els.validateModel.addEventListener('click', validateModel);
+  els.resetToDefaults.addEventListener('click', resetToDefaults);
+  
+  // Calibration prompt
+  els.dismissCalibration.addEventListener('click', hideCalibrationPrompt);
+  els.acceptCalibration.addEventListener('click', acceptCalibration);
+  
+  // Chart visibility
+  els.showVirtualSOC.addEventListener('change', () => {
+    if (chart) chart.data.datasets[0].hidden = !els.showVirtualSOC.checked;
+    if (chart) chart.update();
+  });
+  
+  els.showActualSOC.addEventListener('change', () => {
+    if (chart) chart.data.datasets[1].hidden = !els.showActualSOC.checked;
+    if (chart) chart.update();
+  });
+  
+  els.showVirtualV.addEventListener('change', () => {
+    if (chart) chart.data.datasets[2].hidden = !els.showVirtualV.checked;
+    if (chart) chart.update();
+  });
+  
+  els.showActualV.addEventListener('change', () => {
+    if (chart) chart.data.datasets[3].hidden = !els.showActualV.checked;
+    if (chart) chart.update();
+  });
+  
+  els.showLoad.addEventListener('change', () => {
+    if (chart) chart.data.datasets[4].hidden = !els.showLoad.checked;
+    if (chart) chart.update();
+  });
+  
+  // Auto-save on configuration changes
+  const configInputs = [els.capAh, els.peukert, els.efficiency, els.tempCoeff, els.loadCorrection, els.updateRate, els.timeSpeed];
+  configInputs.forEach(input => {
+    input.addEventListener('change', debounce(() => {
+      saveToLocalStorage();
+    }, 1000));
+  });
+  
+  // Tour
+  document.getElementById('tourSkip').addEventListener('click', endTour);
+  document.getElementById('tourNext').addEventListener('click', nextTourStep);
+  
+  // Search
+  setupSearch();
+}
+
+// --------------------------- Initialize ---------------------------
+function init() {
+  // Load saved configuration
+  loadFromLocalStorage();
+  
+  // Initialize chart
+  initChart();
+  
+  // Set up event listeners
+  setupEventListeners();
+  
+  // Update initial readings
+  updateActualReadings();
+  
+  // Update log visibility
+  updateLogVisibility();
+  
+  // Show tour for first-time users
+  const tourCompleted = localStorage.getItem('tourCompleted');
+  if (!tourCompleted) {
+    setTimeout(() => {
+      showModal(
+        'Welcome to Virtual Battery Monitor',
+        'Would you like to take a quick tour to learn about the features?',
+        () => {
+          startTour();
+        }
+      );
+    }, 1000);
+  }
+  
+  // Auto-compare every 30 seconds if running
+  setInterval(() => {
+    if (virtualBattery.running) {
+      compareVirtualToActual();
+    }
+  }, 30000);
+  
+  // Save on page unload
+  window.addEventListener('beforeunload', saveToLocalStorage);
+}
+
+// Start the application
+init();
+</script>
+</body>
+</html>
+```

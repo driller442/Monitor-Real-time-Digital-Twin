@@ -1,0 +1,55 @@
+﻿{
+    "embed_model_rl_input":  0,
+    "stt_model_size":  "base",
+    "auth_password":  "",
+    "chat_model_rl_requests":  0,
+    "chat_model_vision":  false,
+    "embed_model_kwargs":  {
+
+                           },
+    "rfc_auto_docker":  true,
+    "util_model_rl_input":  0,
+    "chat_model_kwargs":  {
+                              "temperature":  "0"
+                          },
+    "stt_silence_threshold":  0.3,
+    "embed_model_provider":  "LMSTUDIO",
+    "chat_model_rl_output":  0,
+    "util_model_kwargs":  {
+                              "temperature":  "0"
+                          },
+    "chat_model_provider":  "LMSTUDIO",
+    "browser_model_provider":  "LMSTUDIO",
+    "browser_model_vision":  false,
+    "rfc_url":  "localhost",
+    "util_model_rl_output":  0,
+    "chat_model_rl_input":  0,
+    "stt_silence_duration":  1000,
+    "util_model_name":  "dolphin3.0-llama3.1-8b",
+    "util_model_provider":  "LMSTUDIO",
+    "chat_model_name":  "dolphin3.0-llama3.1-8b",
+    "browser_model_name":  "dolphin3.0-llama3.1-8b",
+    "util_model_rl_requests":  0,
+    "chat_model_ctx_length":  4096,
+    "rfc_port_http":  55080,
+    "rfc_port_ssh":  55022,
+    "stt_language":  "en",
+    "embed_model_rl_requests":  0,
+    "api_keys":  {
+                     "openai":  "none"
+                 },
+    "util_model_ctx_length":  4096,
+    "util_model_ctx_input":  0.7,
+    "browser_model_kwargs":  {
+                                 "temperature":  "0"
+                             },
+    "agent_memory_subdir":  "default",
+    "agent_knowledge_subdir":  "custom",
+    "root_password":  "",
+    "auth_login":  "",
+    "embed_model_name":  "dolphin3.0-llama3.1-8b",
+    "rfc_password":  "",
+    "agent_prompts_subdir":  "default",
+    "stt_waiting_timeout":  2000,
+    "chat_model_ctx_history":  0.7
+}
