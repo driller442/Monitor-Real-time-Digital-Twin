@@ -52,3 +52,7 @@
 [submodule "scanner_gui"]
 	path = scanner_gui
 	url = https://github.com/placeholder/placeholder.git
+
+[submodule "docs/scratch"]
+	path = docs/scratch
+	url = https://github.com/placeholder/placeholder.git
