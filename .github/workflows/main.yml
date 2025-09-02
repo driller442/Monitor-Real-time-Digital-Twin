@@ -1,0 +1,58 @@
+name: Delete Submodules
+
+on:
+  workflow_dispatch:
+
+jobs:
+  delete-submodules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      - name: Delete submodule directories
+        run: |
+          # List of submodule directories to delete
+          SUBMODULES=(
+            "1Ak_47_Scanner_Android"
+            "Ak_47_Gui_App"
+            "Ak_47_Scanner_App_Enhanced"
+            "CameraAutomation"
+            "ContextMenuProject"
+            "DeerFlowExperiment"
+            "DeerFlowFresh"
+            "DuckieTV"
+            "aircrack-ng"
+            "bootia32-efi"
+            "cctv-Hack.py"
+            "iptv_scanner_final"
+            "scanner_gui"
+          )
+          
+          # Delete each submodule directory
+          for submodule in "${SUBMODULES[@]}"; do
+            if [ -d "$submodule" ]; then
+              echo "Deleting submodule directory: $submodule"
+              rm -rf "$submodule"
+              git add "$submodule"
+            else
+              echo "Directory $submodule does not exist"
+            fi
+          done
+          
+      - name: Commit deletions
+        run: |
+          git status
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Delete all submodule directories - systematic cleanup"
+            git push origin main
+          fi
